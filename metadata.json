@@ -1,0 +1,8 @@
+{
+  "name": "Roster Digitizer Pro",
+  "description": "Digitize handwritten weekly rosters from photos into Excel spreadsheets with staff list matching and manual correction capabilities.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": []
+}
