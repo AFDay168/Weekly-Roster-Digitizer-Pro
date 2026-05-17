@@ -89,7 +89,20 @@ app.post('/api/ocr', upload.array('images', 10), async (req, res) => {
       ${staffListContext}
       
       IGNORE crossed-out text. 
-      Return strictly JSON with "entries" array.
+      
+      OUTPUT FORMAT: Return ONLY a valid JSON object. No markdown, no code fences, no explanation.
+      Use EXACTLY this schema, with EXACTLY these field names:
+      {
+        "entries": [
+          {
+            "date": "yyyy/mm/dd",
+            "rawIn": "hh:mm",
+            "rawOut": "hh:mm",
+            "name": "Display Name"
+          }
+        ]
+      }
+      The field names must be: "date", "rawIn", "rawOut", "name". Do NOT use any other field names.
     `;
 
     const response = await model.generateContent({
@@ -109,8 +122,19 @@ app.post('/api/ocr', upload.array('images', 10), async (req, res) => {
 
     let result;
     try {
-      const text = response.response.text() || '{"entries": []}';
-      result = JSON.parse(text);
+      const raw = response.response.text() || '{"entries": []}';
+      // Strip markdown code fences if model wraps response
+      const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+      const parsed = JSON.parse(cleaned);
+      // Normalise field names: accept common variants the model may return
+      result = {
+        entries: (parsed.entries || []).map((item) => ({
+          date:   item.date   || item.Date   || '',
+          rawIn:  item.rawIn  || item.raw_in  || item.timeIn  || item.startTime || item.start_time || '',
+          rawOut: item.rawOut || item.raw_out || item.timeOut || item.endTime   || item.end_time   || '',
+          name:   item.name   || item.Name   || item.staffName || '',
+        }))
+      };
     } catch (e) {
       console.error("Failed to parse Gemini response", e);
       result = { entries: [] };
